@@ -634,7 +634,7 @@ function eliminarRifa(idRifa) {
                       <span className=" font-semibold">
                         Sorteo
                       </span>{" "}
-                      desde el menú lateral para iniciar los giros.
+                      desde el menú lateral para iniciar.
                     </p>
 
                     <div className="flex flex-wrap gap-2 pt-3">
@@ -727,7 +727,7 @@ function eliminarRifa(idRifa) {
                             : "bg-slate-700 text-slate-400 cursor-not-allowed"
                         }`}
                       >
-                        {estaGirando ? "Girando..." : "Iniciar giro"}
+                        {estaGirando ? "Girando..." : "Iniciar"}
                       </button>
 
                       {rifaSeleccionada.estado !== "finalizada" &&
