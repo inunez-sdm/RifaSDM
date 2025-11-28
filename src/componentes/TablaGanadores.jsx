@@ -38,7 +38,7 @@ export default function TablaGanadores({ rifa, participantes, premios }) {
         ) : (
           <table className="w-full border-collapse">
             <thead className="bg-slate-900 sticky top-0">
-              <tr className="text-[10px] text-slate-400">
+              <tr className="text-[18px] text-slate-400">
                 <th className="px-2 py-1 text-left">#</th>
                 <th className="px-2 py-1 text-left">Participante</th>
                 <th className="px-2 py-1 text-left">Premio</th>
@@ -48,10 +48,10 @@ export default function TablaGanadores({ rifa, participantes, premios }) {
             <tbody>
               {ganadoresDetallados.map((g) => (
                 <tr key={g.numero} className="border-t border-slate-800">
-                  <td className="px-2 py-1">{g.numero}</td>
-                  <td className="px-2 py-1">{g.nombreParticipante}</td>
-                  <td className="px-2 py-1">{g.tituloPremio}</td>
-                  <td className="px-2 py-1">{g.fecha}</td>
+                  <td className="text-sm px-2 py-1">{g.numero}</td>
+                  <td className="text-sm px-2 py-1">{g.nombreParticipante}</td>
+                  <td className="text-sm px-2 py-1">{g.tituloPremio}</td>
+                  <td className="text-sm px-2 py-1">{g.fecha}</td>
                 </tr>
               ))}
             </tbody>

@@ -47,7 +47,7 @@ export default function GestionParticipantes({
         </button>
       </form>
 
-      <details className="text-xs text-slate-400">
+      <details className="text-sm font-semibold">
         <summary className="cursor-pointer mb-1">
           Agregar varios participantes (uno por línea)
         </summary>

@@ -46,14 +46,14 @@ export default function Ruleta({
   return (
     <div className="relative">
       <div className="mx-auto max-w-xs bg-slate-950 border border-slate-800 rounded-2xl px-4 py-6 flex flex-col items-center gap-4 shadow-inner shadow-black/60">
-        <div className="text-[10px] uppercase tracking-[0.25em] text-slate-500">
+        <div className="text-[18px] uppercase tracking-[0.25em] text-slate-500">
           Sorteo electrónico
         </div>
 
         <div className="relative w-full h-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 flex items-center justify-center">
           <div className="absolute inset-y-0 left-0 right-0 pointer-events-none bg-gradient-to-b from-slate-900 via-transparent to-slate-900 opacity-80" />
           <div
-            className={`relative z-10 text-center px-4 text-lg font-semibold ${
+            className={`relative z-10 text-center px-4 text-4xl font-semibold ${
               estaGirando ? "animate-pulse" : ""
             }`}
           >
@@ -62,7 +62,7 @@ export default function Ruleta({
                 {nombreVisible || "..."}
               </span>
             ) : (
-              <span className="text-slate-500 text-sm">
+              <span className="text-slate-500 text-lg">
                 Agrega colaboradores para comenzar
               </span>
             )}
@@ -72,7 +72,7 @@ export default function Ruleta({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+        <div className="flex items-center gap-2 text-[14px] text-slate-500">
           <span
             className={`w-2 h-2 rounded-full ${
               estaGirando ? "bg-amber-400 animate-ping" : "bg-slate-600"
