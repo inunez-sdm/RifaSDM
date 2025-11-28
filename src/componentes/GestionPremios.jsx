@@ -69,7 +69,7 @@ export default function GestionPremios({
             placeholder="Orden"
           />
         </div>
-
+        {/* */}
         <div className="sm:col-span-6 flex justify-end">
           <button
             type="submit"
