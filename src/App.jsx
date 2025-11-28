@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import SelectorRifa from "./componentes/SelectorRifa.jsx";
-import GestionRifa from "./componentes/GestionRifa.jsx";
+//import GestionRifa from "./componentes/GestionRifa.jsx";
 import GestionParticipantes from "./componentes/GestionParticipantes.jsx";
 import GestionPremios from "./componentes/GestionPremios.jsx";
 import Ruleta from "./componentes/Ruleta.jsx";
 import TablaGanadores from "./componentes/TablaGanadores.jsx";
+import ModalConfirmacion from "./componentes/ModalConfirmacion.jsx";
 
 // =========================
 // Constantes y utilidades
 // =========================
 
 const CLAVE_LOCAL = "rifas_tombola_v2";
+
+
 
 function generarId() {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
@@ -38,6 +41,71 @@ function guardarRifas(rifas) {
 /**
  * Helper para actualizar una rifa específica dentro del arreglo
  */
+
+function escaparCsv(valor) {
+  const texto = (valor ?? "").toString().replace(/"/g, '""');
+  return `"${texto}"`;
+}
+
+function exportarResultadosRifa(rifa, participantes, premios) {
+  if (!rifa || !rifa.ganadores || rifa.ganadores.length === 0) {
+    return;
+  }
+
+  const encabezados = [
+    
+    "N°",
+    "Nombre de la rifa",
+    "Nombre del participante",
+    "Premio",
+    "Fecha",
+    "Hora",
+  ];
+
+  const filas = rifa.ganadores.map((g, indice) => {
+    const participante = participantes.find((p) => p.id === g.participanteId);
+    const premio = premios.find((p) => p.id === g.premioId);
+
+    const fecha = g.creadoEn ? new Date(g.creadoEn) : null;
+
+    return [
+      
+      indice + 1,
+      rifa.nombre || "Rifa sin nombre",
+      participante?.nombre || "Desconocido",
+      premio?.titulo || "Sin premio",
+      fecha ? fecha.toLocaleDateString() : "",
+      fecha ? fecha.toLocaleTimeString() : "",
+    ];
+  });
+
+  const lineas = [encabezados, ...filas].map((cols) =>
+    cols.map(escaparCsv).join(";")
+  );
+
+  const contenido = lineas.join("\r\n");
+  const blob = new Blob([contenido], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const nombreLimpio =
+    (rifa.nombre || "rifa").toLowerCase().replace(/[^a-z0-9]+/gi, "_");
+
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.setAttribute(
+    "download",
+    `resultados_${nombreLimpio || "rifa"}.csv`
+  );
+  document.body.appendChild(enlace);
+  enlace.click();
+  document.body.removeChild(enlace);
+  URL.revokeObjectURL(url);
+}
+
+
+
 function actualizarRifaEnLista(rifas, idRifa, transformador) {
   return rifas.map((r) => (r.id === idRifa ? transformador(r) : r));
 }
@@ -61,6 +129,9 @@ export default function App() {
 
   //Collapse
   const [menuColapsado, setMenuColapsado] = useState(false);
+
+  //Modal
+  const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
 
   // =========================
   // Efectos: carga y persistencia
@@ -447,34 +518,34 @@ function eliminarRifa(idRifa) {
     </button>
   </nav>
 
-  {/* INFORMACIÓN DE RIFA SELECCIONADA */}
-  {!menuColapsado && (
-    <div className="mt-auto text-[11px] text-slate-500">
-      <p>
-        Rifa seleccionada:
-        <br />
-        <span className="text-slate-200 font-semibold">
-          {rifaSeleccionada ? rifaSeleccionada.nombre : "Ninguna"}
-        </span>
-      </p>
+          {/* INFORMACIÓN DE RIFA SELECCIONADA */}
+          {!menuColapsado && (
+            <div className="mt-auto text-[11px] text-slate-500">
+              <p>
+                Rifa seleccionada:
+                <br />
+                <span className="text-slate-200 font-semibold">
+                  {rifaSeleccionada ? rifaSeleccionada.nombre : "Ninguna"}
+                </span>
+              </p>
 
-      {rifaSeleccionada && (
-        <p className="mt-1">
-          Estado:{" "}
-          <span
-            className={
-              rifaSeleccionada.estado === "finalizada"
-                ? "text-emerald-400"
-                : "text-blue-400"
-            }
-          >
-            {rifaSeleccionada.estado}
-          </span>
-        </p>
-      )}
-    </div>
-  )}
-</aside>
+              {rifaSeleccionada && (
+                <p className="mt-1">
+                  Estado:{" "}
+                  <span
+                    className={
+                      rifaSeleccionada.estado === "finalizada"
+                        ? "text-emerald-400"
+                        : "text-blue-400"
+                    }
+                  >
+                    {rifaSeleccionada.estado}
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
+        </aside>
 
 
         {/* CONTENIDO PRINCIPAL */}
@@ -566,22 +637,34 @@ function eliminarRifa(idRifa) {
                       desde el menú lateral para iniciar los giros.
                     </p>
 
+                    <div className="flex flex-wrap gap-2 pt-3">
+                    {/* Exportar resultados */}
+                    { rifaSeleccionada.estado === "finalizada" &&
+                      rifaSeleccionada.ganadores.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          exportarResultadosRifa(
+                            rifaSeleccionada,
+                            rifaSeleccionada.participantes,
+                            rifaSeleccionada.premios
+                          )
+                        }
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+                      >
+                        📤 Exportar resultados (CSV)
+                      </button>
+                    )}
+
+                    {/* Eliminar rifa (abre modal) */}
                     <button
                       type="button"
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            "¿Seguro que deseas eliminar esta rifa? Esta acción no se puede deshacer."
-                          )
-                        ) {
-                          eliminarRifa(rifaSeleccionada.id);
-                        }
-                      }}
-                      className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-red-600 hover:bg-red-500 text-white"
+                      onClick={() => setMostrarModalEliminar(true)}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-red-600 hover:bg-red-500 text-white"
                     >
                       🗑️ Eliminar rifa
                     </button>
-
+                  </div>
                   </div>
 
                   <TablaGanadores
@@ -624,9 +707,6 @@ function eliminarRifa(idRifa) {
                           {rifaSeleccionada.estado === "finalizada"
                             ? "Finalizada"
                             : "Activa"}
-                        </span>
-                        <span className="text-slate-500">
-                          Giro: {rifaSeleccionada.duracionGiroSegundos}s
                         </span>
                       </div>
                     </div>
@@ -714,6 +794,25 @@ function eliminarRifa(idRifa) {
           </div>
         </div>
       </div>
+            <ModalConfirmacion
+              abierto={mostrarModalEliminar && !!rifaSeleccionada}
+              titulo="Eliminar rifa"
+              mensaje={
+                rifaSeleccionada
+                  ? `¿Seguro que deseas eliminar la rifa "${rifaSeleccionada.nombre}"?\nEsta acción no se puede deshacer.`
+                  : "¿Seguro que deseas eliminar esta rifa?"
+              }
+              textoConfirmar="Sí, eliminar"
+              textoCancelar="Cancelar"
+              onConfirmar={() => {
+                if (rifaSeleccionada) {
+                  eliminarRifa(rifaSeleccionada.id);
+                }
+                setMostrarModalEliminar(false);
+              }}
+              onCerrar={() => setMostrarModalEliminar(false)}
+            />
+
     </div>
   );
 }
