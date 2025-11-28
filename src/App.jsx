@@ -155,6 +155,19 @@ export default function App() {
     );
   }
 
+function eliminarRifa(idRifa) {
+  setRifas((prev) => prev.filter((r) => r.id !== idRifa));
+
+  // Si borraste la rifa seleccionada, cambia selección
+  if (idRifaSeleccionada === idRifa) {
+    setIdRifaSeleccionada(null);
+    setIdParticipanteCandidato(null);
+    setIdPremioEnJuego(null);
+  }
+}
+
+
+
   function finalizarRifaManual() {
     if (!rifaSeleccionada) return;
     actualizarRifa({ estado: "finalizada" });
@@ -481,17 +494,17 @@ export default function App() {
                 </p>
               </div>
 
-              <SelectorRifa
-                rifas={rifas}
-                idRifaSeleccionada={idRifaSeleccionada}
-                onSeleccionarRifa={(id) => {
-                  setIdRifaSeleccionada(id);
-                  setIdParticipanteCandidato(null);
-                  setIdPremioEnJuego(null);
-                }}
-                onCrearRifa={crearRifa}
-                soloCrearEnConfiguracion={vistaActual === "configuracion"}
-              />
+             <SelectorRifa
+              rifas={rifas}
+              idRifaSeleccionada={idRifaSeleccionada}
+              onSeleccionarRifa={(id) => {
+                setIdRifaSeleccionada(id);
+                setIdParticipanteCandidato(null);
+                setIdPremioEnJuego(null);
+              }}
+              onCrearRifa={crearRifa}
+              soloCrearEnConfiguracion={vistaActual === "configuracion"}
+            />
             </header>
 
 
@@ -552,6 +565,23 @@ export default function App() {
                       </span>{" "}
                       desde el menú lateral para iniciar los giros.
                     </p>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "¿Seguro que deseas eliminar esta rifa? Esta acción no se puede deshacer."
+                          )
+                        ) {
+                          eliminarRifa(rifaSeleccionada.id);
+                        }
+                      }}
+                      className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-red-600 hover:bg-red-500 text-white"
+                    >
+                      🗑️ Eliminar rifa
+                    </button>
+
                   </div>
 
                   <TablaGanadores

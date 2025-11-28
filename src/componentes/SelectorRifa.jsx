@@ -4,7 +4,7 @@ export default function SelectorRifa({
   rifas,
   idRifaSeleccionada,
   onSeleccionarRifa,
-  onCrearRifa,
+  onCrearRifa, 
   soloCrearEnConfiguracion = false,
 }) {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -55,6 +55,7 @@ export default function SelectorRifa({
             </option>
           ))}
         </select>
+
       </div>
 
       {/* Botón "Nueva rifa" SOLO en Configuración */}
