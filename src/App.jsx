@@ -56,6 +56,7 @@ function exportarResultadosRifa(rifa, participantes, premios) {
     "Sucursal",
     "Posición",
     "Premio",
+    "Descripción del premio", // ✅ NUEVO
     "Fecha",
     "Hora",
   ];
@@ -73,6 +74,7 @@ function exportarResultadosRifa(rifa, participantes, premios) {
       participante?.lugar || "",
       participante?.posicion || "",
       premio?.titulo || "Sin premio",
+      premio?.descripcion || "", // ✅ NUEVO
       fecha ? fecha.toLocaleDateString() : "",
       fecha ? fecha.toLocaleTimeString() : "",
     ];
@@ -83,8 +85,6 @@ function exportarResultadosRifa(rifa, participantes, premios) {
   );
 
   const contenido = lineas.join("\r\n");
-
-  // 👇 BOM para que Excel detecte UTF-8 y respete acentos
   const BOM = "\uFEFF";
 
   const blob = new Blob([BOM + contenido], {
@@ -103,6 +103,7 @@ function exportarResultadosRifa(rifa, participantes, premios) {
   document.body.removeChild(enlace);
   URL.revokeObjectURL(url);
 }
+
 
 function actualizarRifaEnLista(rifas, idRifa, transformador) {
   return rifas.map((r) => (r.id === idRifa ? transformador(r) : r));
