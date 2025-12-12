@@ -43,12 +43,12 @@ export default function SelectorRifa({
     <>
       <div className="flex flex-row items-end gap-2">
         {/* Selector de rifa */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400">Rifa:</label>
+        <div className="flex items-center gap-2 ">
+          <label className="text-lg text-slate-900">Rifa:</label>
           <select
             value={idRifaSeleccionada || ""}
             onChange={handleCambioSeleccion}
-            className="bg-slate-900 border border-slate-700 text-sm rounded-xl px-3 py-1.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="bg-slate-900 border border-[#ffd34e]/50 text-sm rounded-xl px-3 py-1.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Selecciona una rifa</option>
             {rifas.map((r) => (
@@ -64,7 +64,7 @@ export default function SelectorRifa({
           <button
             type="button"
             onClick={() => setMostrarModalCrear(true)}
-            className="mt-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+            className="mt-1 px-3 py-1.5 rounded-2xl border border-[#ffd34e]/50 text-xs font-semibold bg-[#141821] text-white hover:bg-gradient-to-r from-[#ffd34e] to-[#f8c537] hover:text-black shadow-[0_0_25px_rgba(0,0,0,0.55)]"
           >
             Nueva rifa
           </button>

@@ -6,14 +6,14 @@ import GestionPremios from "./componentes/GestionPremios.jsx";
 import Ruleta from "./componentes/Ruleta.jsx";
 import TablaGanadores from "./componentes/TablaGanadores.jsx";
 import ModalConfirmacion from "./componentes/ModalConfirmacion.jsx";
+import ModalGanador from "./componentes/ModalGanador.jsx";
+import logoNavidad from "./assets/logo-navidad-sdm-2025.png";
 
 // =========================
 // Constantes y utilidades
 // =========================
 
 const CLAVE_LOCAL = "rifas_tombola_v2";
-
-
 
 function generarId() {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
@@ -38,10 +38,6 @@ function guardarRifas(rifas) {
   }
 }
 
-/**
- * Helper para actualizar una rifa específica dentro del arreglo
- */
-
 function escaparCsv(valor) {
   const texto = (valor ?? "").toString().replace(/"/g, '""');
   return `"${texto}"`;
@@ -53,10 +49,12 @@ function exportarResultadosRifa(rifa, participantes, premios) {
   }
 
   const encabezados = [
-    
     "N°",
-    "Nombre de la rifa",
+    "Código",
     "Nombre del participante",
+    "Departamento",
+    "Sucursal",
+    "Posición",
     "Premio",
     "Fecha",
     "Hora",
@@ -65,14 +63,15 @@ function exportarResultadosRifa(rifa, participantes, premios) {
   const filas = rifa.ganadores.map((g, indice) => {
     const participante = participantes.find((p) => p.id === g.participanteId);
     const premio = premios.find((p) => p.id === g.premioId);
-
     const fecha = g.creadoEn ? new Date(g.creadoEn) : null;
 
     return [
-      
       indice + 1,
-      rifa.nombre || "Rifa sin nombre",
+      participante?.codigo || "",
       participante?.nombre || "Desconocido",
+      participante?.departamento || "",
+      participante?.lugar || "",
+      participante?.posicion || "",
       premio?.titulo || "Sin premio",
       fecha ? fecha.toLocaleDateString() : "",
       fecha ? fecha.toLocaleTimeString() : "",
@@ -84,7 +83,11 @@ function exportarResultadosRifa(rifa, participantes, premios) {
   );
 
   const contenido = lineas.join("\r\n");
-  const blob = new Blob([contenido], {
+
+  // 👇 BOM para que Excel detecte UTF-8 y respete acentos
+  const BOM = "\uFEFF";
+
+  const blob = new Blob([BOM + contenido], {
     type: "text/csv;charset=utf-8;",
   });
 
@@ -94,17 +97,12 @@ function exportarResultadosRifa(rifa, participantes, premios) {
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement("a");
   enlace.href = url;
-  enlace.setAttribute(
-    "download",
-    `resultados_${nombreLimpio || "rifa"}.csv`
-  );
+  enlace.setAttribute("download", `resultados_${nombreLimpio || "rifa"}.csv`);
   document.body.appendChild(enlace);
   enlace.click();
   document.body.removeChild(enlace);
   URL.revokeObjectURL(url);
 }
-
-
 
 function actualizarRifaEnLista(rifas, idRifa, transformador) {
   return rifas.map((r) => (r.id === idRifa ? transformador(r) : r));
@@ -127,11 +125,15 @@ export default function App() {
   // Vista: sorteo / configuración
   const [vistaActual, setVistaActual] = useState("principal");
 
-  //Collapse
+  // Collapse menú lateral
   const [menuColapsado, setMenuColapsado] = useState(false);
 
-  //Modal
+  // Modal eliminar rifa
   const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
+
+  // Modal ganador
+  const [mostrarModalGanador, setMostrarModalGanador] = useState(false);
+  const [ganadorReciente, setGanadorReciente] = useState(null);
 
   // =========================
   // Efectos: carga y persistencia
@@ -226,18 +228,15 @@ export default function App() {
     );
   }
 
-function eliminarRifa(idRifa) {
-  setRifas((prev) => prev.filter((r) => r.id !== idRifa));
+  function eliminarRifa(idRifa) {
+    setRifas((prev) => prev.filter((r) => r.id !== idRifa));
 
-  // Si borraste la rifa seleccionada, cambia selección
-  if (idRifaSeleccionada === idRifa) {
-    setIdRifaSeleccionada(null);
-    setIdParticipanteCandidato(null);
-    setIdPremioEnJuego(null);
+    if (idRifaSeleccionada === idRifa) {
+      setIdRifaSeleccionada(null);
+      setIdParticipanteCandidato(null);
+      setIdPremioEnJuego(null);
+    }
   }
-}
-
-
 
   function finalizarRifaManual() {
     if (!rifaSeleccionada) return;
@@ -248,24 +247,33 @@ function eliminarRifa(idRifa) {
   // Acciones sobre participantes
   // =========================
 
-  function agregarParticipante(nombre) {
+  function agregarParticipante(entrada) {
     if (!rifaSeleccionada) return;
-    const limpio = nombre.trim();
-    if (!limpio) return;
+
+    const base =
+      typeof entrada === "string" ? { nombre: entrada } : entrada || {};
+
+    const nombreLimpio = base.nombre?.trim();
+    if (!nombreLimpio) return;
 
     const nuevo = {
       id: generarId(),
-      nombre: limpio,
+      nombre: nombreLimpio,
+      codigo: base.codigo?.trim() || "",
+      departamento: base.departamento?.trim() || "",
+      lugar: base.lugar?.trim() || "",
+      posicion: base.posicion?.trim() || "",
       esGanador: false,
       eliminado: false,
       creadoEn: new Date().toISOString(),
     };
 
     setRifas((prev) =>
-      actualizarRifaEnLista(prev, rifaSeleccionada.id, (r) => ({
-        ...r,
-        participantes: [...r.participantes, nuevo],
-      }))
+      prev.map((r) =>
+        r.id === rifaSeleccionada.id
+          ? { ...r, participantes: [...r.participantes, nuevo] }
+          : r
+      )
     );
   }
 
@@ -295,6 +303,10 @@ function eliminarRifa(idRifa) {
     const nuevos = lineas.map((nombre) => ({
       id: generarId(),
       nombre,
+      codigo: "",
+      departamento: "",
+      lugar: "",
+      posicion: "",
       esGanador: false,
       eliminado: false,
       creadoEn: new Date().toISOString(),
@@ -339,6 +351,47 @@ function eliminarRifa(idRifa) {
     );
   }
 
+    function agregarLotePremios(filas) {
+    if (!rifaSeleccionada) return;
+    if (!Array.isArray(filas) || filas.length === 0) return;
+
+    const nuevos = filas
+      .map((f) => {
+        const titulo = (f.titulo ?? "").toString().trim();
+        const descripcion = (f.descripcion ?? "").toString().trim();
+        const cantidadNum = Number(f.cantidad);
+        const ordenNum =
+          f.orden === "" || f.orden === null || f.orden === undefined
+            ? null
+            : Number(f.orden);
+
+        if (!titulo) return null;
+        if (!cantidadNum || cantidadNum <= 0) return null;
+
+        return {
+          id: generarId(),
+          titulo,
+          descripcion,
+          orden: Number.isFinite(ordenNum) ? ordenNum : null,
+          cantidadTotal: cantidadNum,
+          cantidadRestante: cantidadNum,
+          eliminado: false,
+          creadoEn: new Date().toISOString(),
+        };
+      })
+      .filter(Boolean);
+
+    if (nuevos.length === 0) return;
+
+    setRifas((prev) =>
+      actualizarRifaEnLista(prev, rifaSeleccionada.id, (r) => ({
+        ...r,
+        premios: [...r.premios, ...nuevos],
+      }))
+    );
+  }
+
+
   function actualizarPremio(idPremio, parcial) {
     if (!rifaSeleccionada) return;
 
@@ -366,7 +419,7 @@ function eliminarRifa(idRifa) {
     if (participantesDisponibles.length === 0) return false;
     if (premiosDisponibles.length === 0) return false;
     if (estaGirando) return false;
-    if (idParticipanteCandidato || idPremioEnJuego) return false; // hay candidato pendiente
+    if (idParticipanteCandidato || idPremioEnJuego) return false;
     return true;
   }
 
@@ -388,20 +441,23 @@ function eliminarRifa(idRifa) {
         Math.random() * participantesLibres.length
       );
       const participanteSeleccionado = participantesLibres[indiceAleatorio];
-      const premioSeleccionado = premiosLibres[0]; // no cambia de premio hasta agotarlo
+      const premioSeleccionado = premiosLibres[0];
 
       setIdParticipanteCandidato(participanteSeleccionado.id);
       setIdPremioEnJuego(premioSeleccionado.id);
       setEstaGirando(false);
+      setMostrarModalGanador(true);
+      setGanadorReciente(participanteSeleccionado);
     }, duracionMs);
   }
 
   function confirmarCandidatoComoGanador() {
-    if (!rifaSeleccionada || !idParticipanteCandidato || !idPremioEnJuego)
-      return;
+    if (!rifaSeleccionada || !idParticipanteCandidato || !idPremioEnJuego) return;
 
     setRifas((prev) =>
-      actualizarRifaEnLista(prev, rifaSeleccionada.id, (r) => {
+      prev.map((r) => {
+        if (r.id !== rifaSeleccionada.id) return r;
+
         const nuevosParticipantes = r.participantes.map((p) =>
           p.id === idParticipanteCandidato ? { ...p, esGanador: true } : p
         );
@@ -410,7 +466,6 @@ function eliminarRifa(idRifa) {
           if (p.id !== idPremioEnJuego) return p;
           const restanteActual = p.cantidadRestante ?? p.cantidadTotal ?? 0;
           const nuevaCantidad = Math.max(restanteActual - 1, 0);
-
           return { ...p, cantidadRestante: nuevaCantidad };
         });
 
@@ -439,22 +494,27 @@ function eliminarRifa(idRifa) {
 
     setIdParticipanteCandidato(null);
     setIdPremioEnJuego(null);
+    setMostrarModalGanador(false);
   }
 
   function descartarCandidatoYRepetir() {
     if (!rifaSeleccionada || !idParticipanteCandidato) return;
 
     setRifas((prev) =>
-      actualizarRifaEnLista(prev, rifaSeleccionada.id, (r) => ({
-        ...r,
-        participantes: r.participantes.map((p) =>
+      prev.map((r) => {
+        if (r.id !== rifaSeleccionada.id) return r;
+
+        const nuevosParticipantes = r.participantes.map((p) =>
           p.id === idParticipanteCandidato ? { ...p, eliminado: true } : p
-        ),
-      }))
+        );
+
+        return { ...r, participantes: nuevosParticipantes };
+      })
     );
 
     setIdParticipanteCandidato(null);
     setIdPremioEnJuego(null);
+    setMostrarModalGanador(false);
   }
 
   // =========================
@@ -462,135 +522,157 @@ function eliminarRifa(idRifa) {
   // =========================
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-[#f7d96f] text-slate-100">
       <div className="flex min-h-screen">
         {/* MENÚ LATERAL */}
         <aside
-  className={`
-    ${menuColapsado ? "w-16" : "w-56 md:w-64"}
-    border-r border-slate-800 bg-slate-950/80 px-4 py-6 flex flex-col gap-6 transition-all duration-300
-  `}
->
-<button
-  onClick={() => setMenuColapsado(!menuColapsado)}
-  className="relative w-10 h-10 flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 transition group"
-  title={menuColapsado ? "Expandir menú" : "Colapsar menú"}
->
-  <span className={`${menuColapsado ? "rotate-45 translate-y-0" : "-translate-y-2"} absolute block h-0.5 w-5 bg-slate-300 transition-all duration-300`} />
-  <span className={`${menuColapsado ? "opacity-0" : "opacity-100"} absolute block h-0.5 w-5 bg-slate-300 transition-all duration-300`} />
-  <span className={`${menuColapsado ? "-rotate-45 translate-y-0" : "translate-y-2"} absolute block h-0.5 w-5 bg-slate-300 transition-all duration-300`} />
-</button>
+          className={`
+            bg-[#0f1115] border-r border-black/50
+            px-2 md:px-4 py-4 md:py-6
+            flex flex-col gap-4 md:gap-6
+            shadow-[15px_0_45px_rgba(0,0,0,0.7)]
+            transition-all duration-300
+            ${menuColapsado ? "w-12 md:w-16" : "w-56 md:w-64"}
+          `}
+        >
+          {/* HEADER DEL PANEL + BOTÓN HAMBURGUESA (DENTRO DEL PANEL) */}
+          <div className="flex items-center justify-between">
+            {!menuColapsado && (
+              <div className="text-[9px] md:text-xs font-bold uppercase tracking-[0.30em] text-slate-100">
+                Panel administrativo
+              </div>
+            )}
 
+            <button
+              type="button"
+              onClick={() => setMenuColapsado((prev) => !prev)}
+              className="
+                inline-flex items-center justify-center
+                w-10 h-10
+                rounded-2xl
+                bg-[#141821]
+                border border-[#ffd34e]/50
+                text-[#ffd34e]
+                shadow-[0_0_18px_rgba(0,0,0,0.55)]
+                hover:bg-[#191d27]
+              "
+              aria-label={menuColapsado ? "Mostrar panel" : "Ocultar panel"}
+              title={menuColapsado ? "Mostrar panel" : "Ocultar panel"}
+            >
+              <span className="text-lg leading-none">
+                {menuColapsado ? "☰" : "✕"}
+              </span>
+            </button>
+          </div>
 
-  {/* TITULO */}
-  {!menuColapsado && (
-    <div>
-      <div className="text-xs font-bold uppercase tracking-[0.25em] text-white">
-        Panel administrativo
-      </div>
-    </div>
-  )}
-
-  {/* NAVEGACIÓN */}
-  <nav className="flex flex-col gap-1 text-sm py-6">
-    <button
-      onClick={() => setVistaActual("principal")}
-      className={`flex items-center gap-2 px-3 py-2 rounded-xl transition ${
-        vistaActual === "principal"
-          ? "bg-blue-600/80 text-white shadow-lg shadow-blue-500/30"
-          : "bg-slate-900/70 text-slate-300 hover:bg-slate-800"
-      }`}
-    >
-      <span>🎰</span>
-      {!menuColapsado && <span>Sorteo</span>}
-    </button>
-
-    <button
-      onClick={() => setVistaActual("configuracion")}
-      className={`flex items-center gap-2 px-3 py-2 rounded-xl transition ${
-        vistaActual === "configuracion"
-          ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/30"
-          : "bg-slate-900/70 text-slate-300 hover:bg-slate-800"
-      }`}
-    >
-      <span>⚙️</span>
-      {!menuColapsado && <span>Configuración</span>}
-    </button>
-  </nav>
-
-          {/* INFORMACIÓN DE RIFA SELECCIONADA */}
+          {/* CONTENIDO DEL PANEL (solo cuando NO está colapsado) */}
           {!menuColapsado && (
-            <div className="mt-auto text-[11px] text-slate-500">
-              <p>
-                Rifa seleccionada:
-                <br />
-                <span className="text-slate-200 font-semibold">
-                  {rifaSeleccionada ? rifaSeleccionada.nombre : "Ninguna"}
-                </span>
-              </p>
+            <>
+              <nav className="flex flex-col gap-1 text-sm py-6">
+                <button
+                  onClick={() => setVistaActual("principal")}
+                  className={`flex items-center justify-between px-3 py-2 rounded-2xl text-left transition-all ${
+                    vistaActual === "principal"
+                      ? "bg-[#141821] text-[#ffd34e] border border-[#ffd34e]/50 shadow-[0_0_18px_rgba(0,0,0,0.55)]"
+                      : "bg-[#141821] text-slate-200 hover:bg-[#191d27]"
+                  }`}
+                >
+                  <span>Sorteo</span>
+                </button>
 
-              {rifaSeleccionada && (
-                <p className="mt-1">
-                  Estado:{" "}
-                  <span
-                    className={
-                      rifaSeleccionada.estado === "finalizada"
-                        ? "text-emerald-400"
-                        : "text-blue-400"
-                    }
-                  >
-                    {rifaSeleccionada.estado}
+                <button
+                  onClick={() => setVistaActual("configuracion")}
+                  className={`flex items-center justify-between px-3 py-2 rounded-2xl text-left transition-all mt-1 ${
+                    vistaActual === "configuracion"
+                      ? "bg-[#141821] text-[#ffd34e] border border-[#ffd34e]/50 shadow-[0_0_18px_rgba(0,0,0,0.55)]"
+                      : "bg-[#141821] text-slate-200 hover:bg-[#191d27]"
+                  }`}
+                >
+                  <span>Configuración</span>
+                </button>
+              </nav>
+
+              <div className="mt-auto text-[11px] text-slate-500">
+                <p>
+                  Rifa seleccionada:
+                  <br />
+                  <span className="text-slate-200 font-semibold">
+                    {rifaSeleccionada ? rifaSeleccionada.nombre : "Ninguna"}
                   </span>
                 </p>
-              )}
-            </div>
+                {rifaSeleccionada && (
+                  <p className="mt-1">
+                    Estado:{" "}
+                    <span className="text-[#ffd34e]">{rifaSeleccionada.estado}</span>
+                  </p>
+                )}
+              </div>
+            </>
           )}
         </aside>
-
 
         {/* CONTENIDO PRINCIPAL */}
         <div className="flex-1">
           <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-            <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold">
-                  {vistaActual === "principal"
-                    ? "Vista Principal"
-                    : "Configuración de rifas"}
-                </h1>
-                <p className="text-slate-400 text-sm">
-                  {vistaActual === "principal"
-                    ? "Selecciona una rifa y corre la ruleta."
-                    : "Configura la rifa, los participantes y los premios antes de iniciar."}
-                </p>
-              </div>
+            <header
+              className={`
+                flex flex-col md:flex-row md:items-center md:justify-between gap-4
+                rounded-3xl border px-4 py-4 md:px-6 md:py-5
+                ${
+                  vistaActual === "principal"
+                    ? "bg-gradient-to-r from-amber-300 via-amber-200 to-amber-300 border-amber-400/60 text-slate-900 shadow-[0_22px_60px_rgba(0,0,0,0.35)]"
+                    : "bg-slate-900/80 border-slate-800 text-slate-100"
+                }
+              `}
+            >
+              {vistaActual === "principal" ? (
+                <div className="flex items-center gap-4 md:gap-6">
+                  <img
+                    src={logoNavidad}
+                    alt="Fiesta de Navidad SDM 2025"
+                    className="w-28 md:w-40 lg:w-48 drop-shadow-[0_15px_40px_rgba(0,0,0,0.45)]"
+                  />
+                  <div className="space-y-1">
+                    <h1 className="text-xl md:text-2xl lg:text-3xl font-black tracking-tight">
+                      Sorteo Fiesta de Navidad SDM 2025
+                    </h1>
+                    <p className="text-xs md:text-sm text-slate-800/80 max-w-xl">
+                      Selecciona la rifa, corre la ruleta y descubre quiénes serán los
+                      ganadores de nuestra celebración navideña.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold">
+                    Configuración de rifas
+                  </h1>
+                  <p className="text-slate-400 text-sm">
+                    Configura la rifa, los participantes y los premios antes de iniciar.
+                  </p>
+                </div>
+              )}
 
-             <SelectorRifa
-              rifas={rifas}
-              idRifaSeleccionada={idRifaSeleccionada}
-              onSeleccionarRifa={(id) => {
-                setIdRifaSeleccionada(id);
-                setIdParticipanteCandidato(null);
-                setIdPremioEnJuego(null);
-              }}
-              onCrearRifa={crearRifa}
-              soloCrearEnConfiguracion={vistaActual === "configuracion"}
-            />
+              <SelectorRifa
+                rifas={rifas}
+                idRifaSeleccionada={idRifaSeleccionada}
+                onSeleccionarRifa={(id) => {
+                  setIdRifaSeleccionada(id);
+                  setIdParticipanteCandidato(null);
+                  setIdPremioEnJuego(null);
+                }}
+                onCrearRifa={crearRifa}
+                soloCrearEnConfiguracion={vistaActual === "configuracion"}
+              />
             </header>
-
 
             {!rifaSeleccionada ? (
               <div className="border border-dashed border-slate-700 rounded-2xl p-6 text-center text-slate-400">
                 Crea tu rifa o seleciona una en el selector para comenzar.
               </div>
             ) : vistaActual === "configuracion" ? (
-              // =========================
-              // VISTA CONFIGURACIÓN
-              // =========================
               <main className="grid md:grid-cols-2 gap-6 items-start">
                 <section className="space-y-4">
-                  
-
                   <GestionParticipantes
                     participantes={rifaSeleccionada.participantes}
                     onAgregar={agregarParticipante}
@@ -603,6 +685,7 @@ function eliminarRifa(idRifa) {
                     onAgregar={agregarPremio}
                     onActualizar={actualizarPremio}
                     onEliminar={eliminarPremio}
+                    onAgregarLote={agregarLotePremios}
                   />
                 </section>
 
@@ -631,76 +714,47 @@ function eliminarRifa(idRifa) {
                     </p>
                     <p className="mt-2 text-sm">
                       Cuando termines de configurar todo, ve a{" "}
-                      <span className=" font-semibold">
-                        Sorteo
-                      </span>{" "}
+                      <span className="font-semibold">Sorteo</span>{" "}
                       desde el menú lateral para iniciar.
                     </p>
 
                     <div className="flex flex-wrap gap-2 pt-3">
-                    {/* Exportar resultados */}
-                    { rifaSeleccionada.estado === "finalizada" &&
-                      rifaSeleccionada.ganadores.length > 0 && (
                       <button
                         type="button"
-                        onClick={() =>
-                          exportarResultadosRifa(
-                            rifaSeleccionada,
-                            rifaSeleccionada.participantes,
-                            rifaSeleccionada.premios
-                          )
-                        }
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+                        onClick={() => setMostrarModalEliminar(true)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl border border-[#ffd34e]/50 text-xs font-semibold bg-[#141821] text-white hover:bg-gradient-to-r from-[#ffd34e] to-[#f8c537] hover:text-black shadow-[0_0_25px_rgba(0,0,0,0.55)]"
                       >
-                        📤 Exportar resultados (CSV)
+                        🗑️ Eliminar rifa
                       </button>
-                    )}
-
-                    {/* Eliminar rifa (abre modal) */}
-                    <button
-                      type="button"
-                      onClick={() => setMostrarModalEliminar(true)}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-red-600 hover:bg-red-500 text-white"
-                    >
-                      🗑️ Eliminar rifa
-                    </button>
-                  </div>
+                    </div>
                   </div>
 
                   <TablaGanadores
                     rifa={rifaSeleccionada}
                     participantes={rifaSeleccionada.participantes}
                     premios={rifaSeleccionada.premios}
+                    onExportar={() =>
+                      exportarResultadosRifa(
+                        rifaSeleccionada,
+                        rifaSeleccionada.participantes,
+                        rifaSeleccionada.premios
+                      )
+                    }
                   />
                 </section>
               </main>
             ) : (
-              // =========================
-              // VISTA PRINCIPAL (SORTEO)
-              // =========================
-              <main className="grid md:grid-cols-2 gap-6 items-start">
-                <section className="space-y-4">
-                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 md:p-6 space-y-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        {premioEnJuegoActual && (
-                          <p className="text-xs text-slate-400">
-                            Premio en juego:{" "}
-                            <span className="text-slate-100 font-semibold">
-                              {premioEnJuegoActual.titulo}
-                            </span>{" "}
-                            (
-                            {premioEnJuegoActual.cantidadRestante} de{" "}
-                            {premioEnJuegoActual.cantidadTotal} restantes)
-                          </p>
-                        )}
-                      </div>
+              <main className="flex flex-col items-center gap-6 w-full">
+                <section className="w-full space-y-4">
+                  <div className="w-full bg-[#1a1d24] text-[#ffd34e] border border-[#ffd34e]/50 rounded-[32px] p-6 md:p-8 shadow-[0_28px_80px_rgba(0,0,0,0.85)]">
+                    <div className="flex items-start justify-between">
+                      <div />
                       <div className="flex flex-col items-end gap-1 text-xs">
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${
                             rifaSeleccionada.estado === "finalizada"
-                              ? "bg-emerald-900/60 text-emerald-300 border border-emerald-700/60"
-                              : "bg-blue-900/60 text-blue-300 border border-blue-700/60"
+                              ? " text-slate-300 border border-[#ffd34e]/50"
+                              : "bg-[#1a1d24] text-slate-300 border border-[#ffd34e]/50"
                           }`}
                         >
                           <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
@@ -717,102 +771,90 @@ function eliminarRifa(idRifa) {
                       participanteCandidato={participanteCandidatoActual}
                     />
 
-                    <div className="flex flex-row gap-2">
-                      <button
-                        onClick={iniciarGiro}
-                        disabled={!puedeGirar()}
-                        className={`px-4 py-1 rounded-full text-sm font-semibold transition transform ${
-                          puedeGirar()
-                            ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:scale-105 shadow-lg shadow-blue-500/30"
-                            : "bg-slate-700 text-slate-400 cursor-not-allowed"
-                        }`}
-                      >
-                        {estaGirando ? "Girando..." : "Iniciar"}
-                      </button>
+                    <div className="mt-5 flex flex-col items-center gap-3">
+                      <div className="flex flex-wrap justify-center gap-">
+                        <button
+                          onClick={iniciarGiro}
+                          disabled={!puedeGirar()}
+                          className={`px-7 py-2.5 rounded-full text-sm font-semibold transition-transform ${
+                            puedeGirar()
+                              ? "bg-gradient-to-r from-[#ffd34e] to-[#f8c537] text-black shadow-[0_0_25px_rgba(0,0,0,0.55)] hover:scale-[1.03]"
+                              : "bg-[#343847] text-slate-400 cursor-not-allowed"
+                          }`}
+                        >
+                          {estaGirando ? "Girando..." : "Iniciar giro"}
+                        </button>
 
-                      {rifaSeleccionada.estado !== "finalizada" &&
-                        !estaGirando &&
-                        participanteCandidatoActual && (
-                          <>
+                        {rifaSeleccionada.estado !== "finalizada" &&
+                          !estaGirando &&
+                          participanteCandidatoActual && (
+                            <>
+                              <button
+                                onClick={descartarCandidatoYRepetir}
+                                className="px-4 py-2 rounded-full text-sm font-semibold bg-[#1f2937] text-slate-200 hover:bg-[#111827] border border-slate-600/60"
+                              >
+                                Repetir (descartar participante)
+                              </button>
+                              <button
+                                onClick={confirmarCandidatoComoGanador}
+                                className="px-4 py-2 rounded-full text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_18px_rgba(16,185,129,0.45)]"
+                              >
+                                Confirmar ganador y entregar premio
+                              </button>
+                            </>
+                          )}
+
+                        {rifaSeleccionada.estado !== "finalizada" &&
+                          premiosDisponibles.length === 0 &&
+                          rifaSeleccionada.ganadores.length > 0 && (
                             <button
-                              onClick={descartarCandidatoYRepetir}
-                              className="px-4 py-1 rounded-full text-sm font-semibold bg-red-900 hover:bg-red-700"
+                              onClick={finalizarRifaManual}
+                              className="px-4 py-2 rounded-full text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
                             >
-                              Repetir (descartar participante)
+                              Finalizar rifa y mostrar resultados
                             </button>
-                            <button
-                              onClick={confirmarCandidatoComoGanador}
-                              className="px-4 py-1 rounded-full text-sm font-semibold bg-emerald-600 hover:bg-emerald-500"
-                            >
-                              Confirmar ganador
-                            </button>
-                          </>
-                        )}
-
-                      {rifaSeleccionada.estado !== "finalizada" &&
-                        premiosDisponibles.length === 0 &&
-                        rifaSeleccionada.ganadores.length > 0 && (
-                          <button
-                            onClick={finalizarRifaManual}
-                            className="px-4 py-2 rounded-full text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 transition"
-                          >
-                            Finalizar rifa y mostrar resultados
-                          </button>
-                        )}
-                    </div>
-
-                    <div className="text-sm text-slate-500 space-y-1">
-                      <p>
-                        Participantes disponibles:{" "}
-                        <span className="font-semibold text-slate-300">
-                          {participantesDisponibles.length}
-                        </span>
-                        {" · "}
-                        Tipos de premios activos:{" "}
-                        <span className="font-semibold text-slate-300">
-                          {premiosDisponibles.length}
-                        </span>
-                        {" · "}
-                        Unidades de premio restantes:{" "}
-                        <span className="font-semibold text-slate-300">
-                          {totalUnidadesPremioRestantes}
-                        </span>
-                      </p>
+                          )}
+                      </div>
                     </div>
                   </div>
-                </section>
-
-                <section className="space-y-4">
-                  <TablaGanadores
-                    rifa={rifaSeleccionada}
-                    participantes={rifaSeleccionada.participantes}
-                    premios={rifaSeleccionada.premios}
-                  />
                 </section>
               </main>
             )}
           </div>
         </div>
       </div>
-            <ModalConfirmacion
-              abierto={mostrarModalEliminar && !!rifaSeleccionada}
-              titulo="Eliminar rifa"
-              mensaje={
-                rifaSeleccionada
-                  ? `¿Seguro que deseas eliminar la rifa "${rifaSeleccionada.nombre}"?\nEsta acción no se puede deshacer.`
-                  : "¿Seguro que deseas eliminar esta rifa?"
-              }
-              textoConfirmar="Sí, eliminar"
-              textoCancelar="Cancelar"
-              onConfirmar={() => {
-                if (rifaSeleccionada) {
-                  eliminarRifa(rifaSeleccionada.id);
-                }
-                setMostrarModalEliminar(false);
-              }}
-              onCerrar={() => setMostrarModalEliminar(false)}
-            />
 
+      <ModalConfirmacion
+        abierto={mostrarModalEliminar && !!rifaSeleccionada}
+        titulo="Eliminar rifa"
+        mensaje={
+          rifaSeleccionada
+            ? `¿Seguro que deseas eliminar la rifa "${rifaSeleccionada.nombre}"?\nEsta acción no se puede deshacer.`
+            : "¿Seguro que deseas eliminar esta rifa?"
+        }
+        textoConfirmar="Sí, eliminar"
+        textoCancelar="Cancelar"
+        onConfirmar={() => {
+          if (rifaSeleccionada) {
+            eliminarRifa(rifaSeleccionada.id);
+          }
+          setMostrarModalEliminar(false);
+        }}
+        onCerrar={() => setMostrarModalEliminar(false)}
+      />
+
+      <ModalGanador
+        visible={
+          mostrarModalGanador &&
+          !!participanteCandidatoActual &&
+          !!premioEnJuegoActual
+        }
+        participante={participanteCandidatoActual}
+        premio={premioEnJuegoActual}
+        onConfirmar={confirmarCandidatoComoGanador}
+        onDescartar={descartarCandidatoYRepetir}
+      />
     </div>
   );
 }
+

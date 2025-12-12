@@ -15,7 +15,7 @@ export default function ModalCrearRifa({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Fondo oscuro */}
       <div
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#f7d96f] backdrop-blur-3xl"
         onClick={onCerrar}
       />
 
@@ -37,7 +37,7 @@ export default function ModalCrearRifa({
               type="text"
               value={nombre}
               onChange={(e) => onCambiarNombre(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full border border-[#ffd34e]/50 font-semibold bg-[#141821] rounded-lg px-3 py-2 text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="Ej: Rifa aniversario SDM"
             />
           </div>
@@ -50,7 +50,7 @@ export default function ModalCrearRifa({
               value={descripcion}
               onChange={(e) => onCambiarDescripcion(e.target.value)}
               rows={3}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full border border-[#ffd34e]/50 font-semibold bg-[#141821] rounded-lg px-3 py-2 text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
@@ -64,7 +64,7 @@ export default function ModalCrearRifa({
               max={60}
               value={duracion}
               onChange={(e) => onCambiarDuracion(Number(e.target.value))}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full border border-[#ffd34e]/50  font-semibold bg-[#141821] rounded-lg px-3 py-2 text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -73,14 +73,14 @@ export default function ModalCrearRifa({
           <button
             type="button"
             onClick={onCerrar}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200"
+            className="px-4 py-2 rounded-2xl border border-[#ffd34e]/50 text-xs font-semibold bg-[#141821] text-white hover:bg-gradient-to-r from-[#ffd34e] to-[#f8c537] hover:text-black shadow-[0_0_25px_rgba(0,0,0,0.55)]"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={onCrear}
-            className="px-4 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+            className="px-4 py-2 rounded-2xl border border-[#ffd34e]/50 text-xs font-semibold bg-[#141821] text-white hover:bg-gradient-to-r from-[#ffd34e] to-[#f8c537] hover:text-black shadow-[0_0_25px_rgba(0,0,0,0.55)]"
           >
             Crear rifa
           </button>

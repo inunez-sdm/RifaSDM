@@ -5,3 +5,49 @@
 body {
   @apply bg-slate-950 text-slate-100;
 }
+
+
+/* Confeti: pequeñas “tiritas” que caen */
+.confeti-item {
+  position: absolute;
+  top: -20px;
+  border-radius: 9999px;
+  opacity: 0.9;
+  animation-name: confeti-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes confeti-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 260px, 0) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Sacudida suave del modal cuando se descarta */
+.modal-shake {
+  animation: modal-shake 2s ease-in-out;
+}
+
+@keyframes modal-shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-4px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
